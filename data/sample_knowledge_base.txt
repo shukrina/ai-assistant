@@ -1,0 +1,23 @@
+Our AI Assistant Platform Overview
+
+The AI Assistant is a retrieval-augmented chat system. It supports multiple LLM
+providers including OpenAI, Anthropic, and Gemini, and can fall back to a
+locally-hosted open-source model served via vLLM if the primary provider is
+unavailable.
+
+Documents are ingested through the /ingest endpoint. Each document is split
+into overlapping chunks, embedded using a sentence-transformers model, and
+stored in a persistent ChromaDB vector store. When a user asks a question,
+the system retrieves the most relevant chunks and injects them into the
+model's context window before generating an answer.
+
+The assistant also supports tool calling. Available tools include a
+calculator, a current-time lookup, and an explicit knowledge-base search
+tool. Tool results are fed back to the model so it can incorporate them into
+its final answer.
+
+For reliability, all LLM calls are wrapped in retry logic with exponential
+backoff. If the primary provider fails after all retries, the system
+automatically falls back to a secondary provider. Requests are also rate
+limited per client, and identical queries are served from a short-lived
+response cache to reduce latency and cost.

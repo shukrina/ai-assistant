@@ -1,0 +1,15 @@
+site_name: AI Assistant Docs
+site_description: RAG-powered AI assistant — architecture, API reference, and deployment guide
+theme:
+  name: material
+  palette:
+    primary: indigo
+
+nav:
+  - Home: index.md
+  - Architecture: architecture.md
+
+markdown_extensions:
+  - admonition
+  - fenced_code
+  - tables

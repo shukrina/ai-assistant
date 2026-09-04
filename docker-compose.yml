@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-assistant-api:latest
+    container_name: ai-assistant-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///./data/app.db
+      - VECTOR_DB_PATH=/app/data/chroma
+      # Point at the local vLLM service when using the "local" provider/fallback:
+      - LOCAL_LLM_BASE_URL=http://vllm:8001/v1
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - assistant-net
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-assistant-api:latest
+    container_name: ai-assistant-ui
+    command: ["streamlit", "run", "ui/streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    ports:
+      - "8501:8501"
+    environment:
+      - API_BASE_URL=http://app:8000
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - assistant-net
+
+  # Optional: serves an open-source model locally via vLLM's OpenAI-compatible
+  # server. Enable with: docker compose --profile local-llm up
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: local-vllm
+    profiles: ["local-llm"]
+    command: >
+      --model mistralai/Mistral-7B-Instruct-v0.2
+      --port 8001
+      --host 0.0.0.0
+    ports:
+      - "8001:8001"
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    networks:
+      - assistant-net
+
+networks:
+  assistant-net:
+    driver: bridge
+
+volumes:
+  hf-cache:
